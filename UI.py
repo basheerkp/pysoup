@@ -239,5 +239,6 @@ class ScraperUI(QWidget):
 
 app = QApplication([])
 window = ScraperUI()
+window.setWindowTitle("PYSOUP")
 window.show()
 app.exec()
