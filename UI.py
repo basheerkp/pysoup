@@ -38,6 +38,14 @@ class ScraperUI(QWidget):
 
         # Layout
         self.angle = 0
+        self.keys_pressed = {}
+
+    def keyPressEvent(self, event):
+        key = event.key()
+        self.keys_pressed[key] = True 
+
+        if (self.keys_pressed.get(Qt.Key.Key_Q) and self.keys_pressed.get(Qt.Key.Key_Control)) or self.keys_pressed.get(Qt.Key.Key_W) and self.keys_pressed.get(Qt.Key.Key_Control):
+            self.close()
 
     def initUI(self):
         # search bar and button
