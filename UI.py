@@ -7,7 +7,7 @@ from PyQt6.QtGui import QFont, QIcon, QPixmap, QTransform
 from PyQt6.QtWidgets import *
 from PyQt6.QtWidgets import QApplication
 
-from scraper import getItems
+from limetorrent import getItemsLimeTorrents
 
 Query_res = []
 
@@ -15,6 +15,16 @@ Query_res = []
 class WorkerSignals(QObject):
     result = pyqtSignal(list)
     error = pyqtSignal(str)
+
+
+class ClickableLabel(QLabel):
+    def __init__(self, text="", parent=None, link=""):
+        super().__init__(text, parent)
+        self.link = link
+
+    def mousePressEvent(self, ev):
+        if ev.button() == Qt.MouseButton.LeftButton:
+            subprocess.call(["xdg-open", self.link])
 
 
 class ScraperUI(QWidget):
@@ -42,9 +52,11 @@ class ScraperUI(QWidget):
 
     def keyPressEvent(self, event):
         key = event.key()
-        self.keys_pressed[key] = True 
+        self.keys_pressed[key] = True  # Mark the key as pressed
 
-        if (self.keys_pressed.get(Qt.Key.Key_Q) and self.keys_pressed.get(Qt.Key.Key_Control)) or self.keys_pressed.get(Qt.Key.Key_W) and self.keys_pressed.get(Qt.Key.Key_Control):
+        # Check if both keys are pressed (e.g., 'Q' and 'W')
+        if (self.keys_pressed.get(Qt.Key.Key_Q) and self.keys_pressed.get(Qt.Key.Key_Control)) or self.keys_pressed.get(
+                Qt.Key.Key_W) and self.keys_pressed.get(Qt.Key.Key_Control):
             self.close()
 
     def initUI(self):
@@ -105,7 +117,7 @@ class ScraperUI(QWidget):
         self.query.setFocus()
 
     def itemWidget(self, item_details):
-        self.title = QLabel(str(item_details[2]).upper())
+        self.title = ClickableLabel(item_details[2].upper(), link=item_details[3])
         self.seeds = QLabel("Seeds : " + item_details[7].__str__())
         self.leeches = QLabel("Leeches : " + item_details[8].__str__())
         self.size = QLabel("Size : " + item_details[6])
@@ -201,7 +213,7 @@ class ScraperUI(QWidget):
 
     def run_get_items(self, query, page):
         try:
-            results = getItems(query, page=page)
+            results = getItemsLimeTorrents(query, page=page)
             self.signals.result.emit(results)
         except Exception as e:
             print(e)
