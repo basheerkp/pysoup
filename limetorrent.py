@@ -1,10 +1,5 @@
-import dns.resolver
 import requests
 from bs4 import BeautifulSoup
-
-resolver = dns.resolver.Resolver()
-resolver.nameservers = ['1.1.1.1', '8.8.8.8', ]
-answer = resolver.resolve('limetorrents.lol', 'A')
 
 
 def getItemsLimeTorrents(query, page=1):
@@ -34,7 +29,7 @@ def getItemsLimeTorrents(query, page=1):
                 leeches = link.select("td")[4].text
                 magnet = "magnet:?xt=urn:btih:" + link.select("td")[0].find("a").get("href")[29::].split('.')[0]
 
-                item_list.append([item_type, lang, title, item_link, uploader, date, size, seeds, leeches, magnet])
+                item_list.append([item_type, lang, str(title), item_link, uploader, date, size, seeds, leeches, magnet])
 
             return item_list
         else:
@@ -44,3 +39,4 @@ def getItemsLimeTorrents(query, page=1):
         print(f"Request failed: {e}")
 
 
+print(getItemsLimeTorrents('batman', 1))

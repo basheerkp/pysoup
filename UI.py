@@ -1,3 +1,4 @@
+import json
 import math
 import subprocess
 from concurrent.futures.thread import ThreadPoolExecutor
@@ -8,6 +9,7 @@ from PyQt6.QtWidgets import *
 from PyQt6.QtWidgets import QApplication
 
 from limetorrent import getItemsLimeTorrents
+from torrentgalaxy import getItemsTorrentGalaxy
 
 Query_res = []
 
@@ -15,6 +17,27 @@ Query_res = []
 class WorkerSignals(QObject):
     result = pyqtSignal(list)
     error = pyqtSignal(str)
+
+
+class CustomWidget(QWidget):
+    def contextMenuEvent(self, event):
+        with open('domain.json', 'r') as f:
+            self.domain = json.load(f)["domain"]
+        contextMenu = QMenu(self)
+        if self.domain == "LT":
+            domain = "TorrentGalaxy"
+        else:
+            domain = "LimeTorrents"
+        domain = contextMenu.addAction(f"Use {domain}")
+        domain.triggered.connect(self.changeDomain)
+        contextMenu.exec(event.globalPos())
+
+    def changeDomain(self):
+        with open('domain.json', 'w+') as f:
+            if self.domain == "LT":
+                json.dump({"domain": "TG"}, f)
+            else:
+                json.dump({"domain": "LT"}, f)
 
 
 class ClickableLabel(QLabel):
@@ -92,7 +115,7 @@ class ScraperUI(QWidget):
         self.Results = QScrollArea()
         self.Results.setWidgetResizable(True)
 
-        self.results_container = QWidget()
+        self.results_container = CustomWidget()
         self.results_layout = QVBoxLayout()
 
         self.horizontal_loading = QHBoxLayout()
@@ -117,7 +140,7 @@ class ScraperUI(QWidget):
         self.query.setFocus()
 
     def itemWidget(self, item_details):
-        self.title = ClickableLabel(item_details[2].upper(), link=item_details[3])
+        self.title = ClickableLabel(item_details[2], link=item_details[3])
         self.seeds = QLabel("Seeds : " + item_details[7].__str__())
         self.leeches = QLabel("Leeches : " + item_details[8].__str__())
         self.size = QLabel("Size : " + item_details[6])
@@ -213,9 +236,15 @@ class ScraperUI(QWidget):
 
     def run_get_items(self, query, page):
         try:
-            results = getItemsLimeTorrents(query, page=page)
+            with open('domain.json', 'r+') as file:
+                self.domain = json.load(file)["domain"]
+            if self.domain == "LT":
+                results = getItemsLimeTorrents(query, page=page)
+            else:
+                results = getItemsTorrentGalaxy(query, page=page)
             self.signals.result.emit(results)
         except Exception as e:
+            self.button.setEnabled(True)
             print(e)
 
     def display_results(self, results):
