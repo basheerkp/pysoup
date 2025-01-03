@@ -7,7 +7,7 @@ resolver.nameservers = ['1.1.1.1', '8.8.8.8', ]
 answer = resolver.resolve('torrentgalaxy.to', 'A')
 
 
-def getItemsTorrentGalaxy(query):
+def getItemsTorrentGalaxy(query, queue):
     url = f"https://{answer[0].to_text()}/torrents.php?search={query.replace(' ', '+')}&sort=seeders&order=desc&page=0"
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36",
@@ -35,10 +35,12 @@ def getItemsTorrentGalaxy(query):
                 leeches = seedleeches[1][0:-1:]
                 magnet = link.contents[5].select_one("a[href*=magnet]").get("href")
 
-                item_list.append([item_type, lang, title, item_link, uploader, date, size,int(seeds), int(leeches), magnet])
-            return item_list
+                item_list.append(
+                    [item_type, lang, title, item_link, uploader, date, size, int(seeds.replace(',', '')),
+                     int(leeches.replace(',', '')), magnet])
+            queue.put(item_list)
         else:
             print(f"Request returned status code: {response.status_code}")
-            return [["None", "", "", "", "", "", "", 0, 0, ""]]
+            queue.put([["None", "", "", "", "", "", "", 0, 0, ""]])
     except requests.exceptions.RequestException as e:
         print(f"Request failed: {e}")

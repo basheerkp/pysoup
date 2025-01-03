@@ -1,6 +1,9 @@
+import multiprocessing
+import time
 import math
 import subprocess
 from concurrent.futures.thread import ThreadPoolExecutor
+
 from PyQt6.QtCore import QSize, QObject, pyqtSignal, Qt, QTimer
 from PyQt6.QtGui import QFont, QIcon, QPixmap, QTransform
 from PyQt6.QtWidgets import *
@@ -31,6 +34,7 @@ class ClickableLabel(QLabel):
 
 class ScraperUI(QWidget):
     dir_path = os.path.dirname(os.path.realpath(__file__))
+
     def __init__(self):
         super().__init__()
         self.setGeometry(256, 192, 1366, 768)
@@ -219,8 +223,20 @@ class ScraperUI(QWidget):
 
     def run_get_items(self, query):
         try:
-            results1 = getItemsLimeTorrents(query)
-            results2 = getItemsTorrentGalaxy(query)
+            queue1 = multiprocessing.Queue()
+            queue2 = multiprocessing.Queue()
+
+            process1 = multiprocessing.Process(target=getItemsLimeTorrents, args=[query, queue1])
+            process2 = multiprocessing.Process(target=getItemsTorrentGalaxy, args=[query, queue2])
+
+            process1.start()
+            process2.start()
+
+            process1.join()
+            process2.join()
+
+            results1 = queue1.get()
+            results2 = queue2.get()
             self.signals.result.emit(joint(results1, results2))
         except Exception as e:
             self.button.setEnabled(True)

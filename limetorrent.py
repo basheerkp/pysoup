@@ -1,8 +1,8 @@
 import requests
 from bs4 import BeautifulSoup
+import multiprocessing
 
-
-def getItemsLimeTorrents(query):
+def getItemsLimeTorrents(query, queue):
     url = f"https://www.limetorrents.lol/search/all/{query.replace(' ', '-')}/seeds/1/"
     print(url)
     headers = {
@@ -33,9 +33,9 @@ def getItemsLimeTorrents(query):
                     ["None", lang, str(title).strip(), item_link, uploader, date, size, int(seeds.replace(',', '')),
                      int(leeches.replace(',', '')), magnet])
 
-            return item_list
+            queue.put(item_list)
         else:
             print(f"Request returned status code: {response.status_code}")
-            return [["None", "", "", "", "", "", "", 0, 0, ""]]
+            queue.put([["None", "", "", "", "", "", "", 0, 0, ""]])
     except requests.exceptions.RequestException as e:
         print(f"Request failed: {e}")
