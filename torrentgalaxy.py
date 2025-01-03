@@ -20,7 +20,7 @@ def getItemsTorrentGalaxy(query, queue):
             doc = BeautifulSoup(response.content, 'html.parser')
             links = doc.select("div.tgxtablerow")
             if len(links) == 0 and doc.text:
-                return [["None", "", "", "", "", "", "", 0, 0, ""]]
+                queue.put( [["None", "", "", "", "", "", "", 0, 0, ""]])
             item_list = []
             for link in links:
                 item_type = link.contents[1].text.split()[0]

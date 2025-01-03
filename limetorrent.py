@@ -15,7 +15,7 @@ def getItemsLimeTorrents(query, queue):
             links = doc.select("tr")
             links = links[5::]
             if len(links) == 0 and doc.text:
-                return [["None", "", "", "", "", "", "", 0, 0, ""]]
+                 queue.put([["None", "", "", "", "", "", "", 0, 0, ""]])
             item_list = []
             for link in links:
                 date_type = link.select("td")[1].text.split('-')
