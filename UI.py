@@ -1,13 +1,13 @@
-import json
 import math
 import subprocess
 from concurrent.futures.thread import ThreadPoolExecutor
-
 from PyQt6.QtCore import QSize, QObject, pyqtSignal, Qt, QTimer
 from PyQt6.QtGui import QFont, QIcon, QPixmap, QTransform
 from PyQt6.QtWidgets import *
 from PyQt6.QtWidgets import QApplication
+import os
 
+from joint import joint
 from limetorrent import getItemsLimeTorrents
 from torrentgalaxy import getItemsTorrentGalaxy
 
@@ -17,27 +17,6 @@ Query_res = []
 class WorkerSignals(QObject):
     result = pyqtSignal(list)
     error = pyqtSignal(str)
-
-
-class CustomWidget(QWidget):
-    def contextMenuEvent(self, event):
-        with open('domain.json', 'r') as f:
-            self.domain = json.load(f)["domain"]
-        contextMenu = QMenu(self)
-        if self.domain == "LT":
-            domain = "TorrentGalaxy"
-        else:
-            domain = "LimeTorrents"
-        domain = contextMenu.addAction(f"Use {domain}")
-        domain.triggered.connect(self.changeDomain)
-        contextMenu.exec(event.globalPos())
-
-    def changeDomain(self):
-        with open('domain.json', 'w+') as f:
-            if self.domain == "LT":
-                json.dump({"domain": "TG"}, f)
-            else:
-                json.dump({"domain": "LT"}, f)
 
 
 class ClickableLabel(QLabel):
@@ -51,6 +30,7 @@ class ClickableLabel(QLabel):
 
 
 class ScraperUI(QWidget):
+    dir_path = os.path.dirname(os.path.realpath(__file__))
     def __init__(self):
         super().__init__()
         self.setGeometry(256, 192, 1366, 768)
@@ -59,7 +39,7 @@ class ScraperUI(QWidget):
         self.initUI()
         self.label = QLabel(self)
         self.label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.pixmap = QPixmap("loading.png")  # Replace with your icon path
+        self.pixmap = QPixmap(f"{self.dir_path}/rss/loading.png")  # Replace with your icon path
 
         self.label.setPixmap(self.pixmap)
         self.label.setScaledContents(True)
@@ -68,7 +48,6 @@ class ScraperUI(QWidget):
         # Set up the timer for rotation
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.rotate_icon)
-
         # Layout
         self.angle = 0
         self.keys_pressed = {}
@@ -96,7 +75,7 @@ class ScraperUI(QWidget):
 
         self.label.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        self.icon = QPixmap("loading.png")
+        self.icon = QPixmap(f"{self.dir_path}/rss/loading.png")
         self.angle = 0
 
         self.timer = QTimer(self)
@@ -107,15 +86,22 @@ class ScraperUI(QWidget):
         self.signals.result.connect(self.display_results)
 
         # adding them to horizontal layout
-        self.horizontal1 = QHBoxLayout()
+        self.search_container = QWidget(self)
+        self.horizontal1 = QHBoxLayout(self.search_container)
         self.horizontal1.addWidget(self.query)
         self.horizontal1.addWidget(self.button)
-
+        self.search_container.setObjectName("search")
+        self.search_container.setStyleSheet("""
+                    QWidget#search
+                    {
+                    border : 1px solid lightblue;
+                    }
+                    """)
         # possible Results screen
         self.Results = QScrollArea()
         self.Results.setWidgetResizable(True)
 
-        self.results_container = CustomWidget()
+        self.results_container = QWidget()
         self.results_layout = QVBoxLayout()
 
         self.horizontal_loading = QHBoxLayout()
@@ -127,14 +113,11 @@ class ScraperUI(QWidget):
 
         self.results_container.setLayout(self.results_layout)
 
-        for i in Query_res:
-            self.results_layout.addWidget(self.itemWidget(i))
-
         self.Results.setWidget(self.results_container)
 
         self.vertical1 = QVBoxLayout()
         self.vertical1.addWidget(self.Results)
-        self.vertical1.addLayout(self.horizontal1)
+        self.vertical1.addWidget(self.search_container)
 
         self.setLayout(self.vertical1)
         self.query.setFocus()
@@ -153,7 +136,9 @@ class ScraperUI(QWidget):
         self.lang.setFixedWidth(86)
 
         self.magnet_button = QPushButton()
-        self.magnet_button.setIcon(QIcon("magnet.png"))
+        self.magnet_button.setStyleSheet("""
+            """)
+        self.magnet_button.setIcon(QIcon(f"{self.dir_path}/rss/magnet.png"))
         self.magnet_button.setIconSize(QSize(48, 48))
         self.magnet_button.setFixedSize(64, 64)
         self.magnet_button.pressed.connect(lambda: self.open_magnet(str(item_details[-1])))
@@ -187,23 +172,21 @@ class ScraperUI(QWidget):
         }
         """)
         self.seeds.setStyleSheet("""
-        QLabel{
-        color:green;
-        }
-        """)
+            QLabel{
+                    color:green;
+                        }
+                        """)
         self.leeches.setStyleSheet("""
                 QLabel{
                 color: red;
                 }
                 """)
-        self.item.setStyleSheet("""
-                QWidget#custom { 
-                    background-color: white;
-                    border: 1px solid lightblue;
-                    border-radius: 16px;
-                    background-color: transparent;
-                }
-            """)
+        self.item.setStyleSheet(
+            """
+            QWidget#custom
+            {
+                border:1px solid lightblue;
+                }""")
         return self.item
 
     def search(self):
@@ -226,7 +209,7 @@ class ScraperUI(QWidget):
                 if widget:
                     widget.deleteLater()
             Query_res.clear()
-            self.executor.submit(self.run_get_items, self.text, 1)
+            self.executor.submit(self.run_get_items, self.text)
             if not self.timer.isActive():  # Check if the timer is already running
                 self.label.setPixmap(self.icon)  # Reset the pixmap before starting
                 self.label.show()
@@ -234,15 +217,11 @@ class ScraperUI(QWidget):
 
             self.text = self.query.text()
 
-    def run_get_items(self, query, page):
+    def run_get_items(self, query):
         try:
-            with open('domain.json', 'r+') as file:
-                self.domain = json.load(file)["domain"]
-            if self.domain == "LT":
-                results = getItemsLimeTorrents(query, page=page)
-            else:
-                results = getItemsTorrentGalaxy(query, page=page)
-            self.signals.result.emit(results)
+            results1 = getItemsLimeTorrents(query)
+            results2 = getItemsTorrentGalaxy(query)
+            self.signals.result.emit(joint(results1, results2))
         except Exception as e:
             self.button.setEnabled(True)
             print(e)
@@ -256,17 +235,8 @@ class ScraperUI(QWidget):
             Query_res.append(i)
 
         # Add the new results to the layout
-        if len(Query_res) < 50:
-            for i in Query_res:
-                self.results_layout.addWidget(self.itemWidget(i))
-        elif len(Query_res) == 50:
-            for i in Query_res:
-                self.results_layout.addWidget(self.itemWidget(i))
-            self.executor.submit(self.run_get_items, self.text, 2)
-        else:
-            for i in Query_res[50::]:
-                self.results_layout.addWidget(self.itemWidget(i))
-
+        for i in Query_res:
+            self.results_layout.addWidget(self.itemWidget(i))
         self.button.setEnabled(True)
 
     def open_magnet(self, link):
@@ -288,6 +258,13 @@ class ScraperUI(QWidget):
 
 app = QApplication([])
 window = ScraperUI()
+window.setStyleSheet("""  
+                    QWidget { 
+                    background-color: grey;
+                    border-radius: 16px;
+                    background-color: gray;
+                }
+                """)
 window.setWindowTitle("PYSOUP")
 window.show()
 app.exec()
